@@ -1,32 +1,22 @@
 package REST
 
 import (
-	"docker-service/internal/core"
 	"docker-service/internal/dcontainers"
+
+	"docker-service/internal/core"
 
 	"github.com/gin-gonic/gin"
 )
 
-func StartServer() {
+func StartServer(Docker dcontainers.DContainer) {
 
-	// http.HandleFunc("/containers", docker.GetContainers)
-	core.Handler()
 	port := ":8080"
-	// fmt.Printf("Server listening on %s\n", port)
-	// if err := http.ListenAndServe(port, nil); err != nil {
-	// 	panic(err)
-	// }
 
 	router := gin.Default()
 
-	Docker := dcontainers.DContainer{}
-
-	router.GET("/containers/", Docker.GetContainers)
-	router.POST("/start/:id", Docker.StartContainer)
-	router.POST("/stop/:id", Docker.StopContainer)
+	core.Handler(router, Docker)
 
 	if err := router.Run(port); err != nil {
 		panic(err)
 	}
-
 }

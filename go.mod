@@ -1,6 +1,6 @@
 module docker-service
 
-go 1.18
+go 1.21.3
 
 require (
 	github.com/docker/docker v24.0.6+incompatible

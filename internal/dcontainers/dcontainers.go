@@ -7,7 +7,7 @@ import (
 	"net/http"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
+	typeContainer "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/gin-gonic/gin"
 )
@@ -23,9 +23,7 @@ type DContainer struct {
 // 	containerList := make([]Dcontainer, len())
 // }
 
-// var GlobalClient = client.NewClientWithOpts(client.FromEnv) // TODO: Gloval client for docker
-
-func (сont *DContainer) GetContainers(c *gin.Context) {
+func (container *DContainer) GetContainers(c *gin.Context) {
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		// panic(err)
@@ -63,7 +61,7 @@ func (сont *DContainer) GetContainers(c *gin.Context) {
 	// fmt.Fprintln(w, string(JSON))
 }
 
-func (cont *DContainer) StartContainer(c *gin.Context) {
+func (container *DContainer) StartContainer(c *gin.Context) {
 
 	containerID := c.Param("id")
 	cli, err := client.NewClientWithOpts(client.FromEnv)
@@ -79,7 +77,7 @@ func (cont *DContainer) StartContainer(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("Container %s started", containerID)})
 }
 
-func (cont *DContainer) StopContainer(c *gin.Context) {
+func (container *DContainer) StopContainer(c *gin.Context) {
 	containerID := c.Param("id")
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
@@ -87,7 +85,7 @@ func (cont *DContainer) StopContainer(c *gin.Context) {
 		return
 	}
 
-	if err = cli.ContainerStop(c.Request.Context(), containerID, container.StopOptions{}); err != nil {
+	if err = cli.ContainerStop(c.Request.Context(), containerID, typeContainer.StopOptions{}); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

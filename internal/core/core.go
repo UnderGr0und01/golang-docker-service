@@ -1,14 +1,15 @@
 package core
 
-func Handler() {
+import (
+	"docker-service/internal/dcontainers"
+	"log"
 
-	// Docker := dcontainers.DContainer{}
+	"github.com/gin-gonic/gin"
+)
 
-	// router := gin.Default()
-
-	// router.GET("/containers/", Docker.GetContainers)
-	// http.HandleFunc("/containers", Docker.GetContainers)
-
-	// http.HandleFunc("/containers/run", Docker.StartContainer)
-
+func Handler(router *gin.Engine, Docker dcontainers.DContainer) {
+	log.Println("debug")
+	router.GET("/containers/", Docker.GetContainers)
+	router.POST("/start/:id", Docker.StartContainer)
+	router.POST("/stop/:id", Docker.StopContainer)
 }
