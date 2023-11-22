@@ -46,14 +46,14 @@ func (container *DContainer) GetContainers(c *gin.Context) {
 			Image:  container.Image,
 		}
 	}
-	JData, err := json.MarshalIndent(containerList, "", " ")
+	data, err := json.MarshalIndent(containerList, "", " ")
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	c.Header("Content-Type", "application/json")
-	c.String(http.StatusOK, string(JData))
+	c.String(http.StatusOK, string(data))
 
 	// w.Header().Set("Content-Type", "application/json")
 	// w.WriteHeader(http.StatusOK)
@@ -90,4 +90,38 @@ func (container *DContainer) StopContainer(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("Container %s stopped", containerID)})
+}
+
+func (container *DContainer) GetLogs(c *gin.Context) { //TODO:FIX Logs print
+	containerID := c.Param("id")
+
+	cli, err := client.NewClientWithOpts(client.FromEnv)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	reader, err := cli.ContainerLogs(c.Request.Context(), containerID, types.ContainerLogsOptions{
+		ShowStdout: true,
+		ShowStderr: false,
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// logs, err := io.Copy(os.Stdout, reader)
+	// if err != nil && err != io.EOF {
+	// 	c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	// 	return
+	// }
+	data, err := json.MarshalIndent(reader, "", " ")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.Header("Content-Type", "application/json")
+	c.String(http.StatusOK, string(data))
+
+	// c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("Logs %s", containerID)})
 }

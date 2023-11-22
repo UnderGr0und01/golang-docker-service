@@ -1,15 +1,10 @@
 package core
 
-import (
-	"docker-service/internal/dcontainers"
-	"log"
+import "github.com/gin-gonic/gin"
 
-	"github.com/gin-gonic/gin"
-)
-
-func Handler(router *gin.Engine, Docker dcontainers.DContainer) {
-	log.Println("debug")
-	router.GET("/containers/", Docker.GetContainers)
-	router.POST("/start/:id", Docker.StartContainer)
-	router.POST("/stop/:id", Docker.StopContainer)
+type Controller interface {
+	GetContainers(c *gin.Context)
+	StartContainer(c *gin.Context)
+	StopContainer(c *gin.Context)
+	GetLogs(c *gin.Context)
 }
