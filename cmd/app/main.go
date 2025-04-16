@@ -12,22 +12,18 @@ import (
 )
 
 func main() {
-	// Инициализация базы данных
+
 	log.Println("Initializing database...")
 	config.InitDB()
 	log.Println("Database initialized successfully")
 
-	// Создание роутера
 	router := gin.Default()
 
-	// Создание обработчиков
 	authHandler := handlers.NewAuthHandler()
 
-	// Регистрация публичных маршрутов
 	router.POST("/register", authHandler.Register)
 	router.POST("/login", authHandler.Login)
 
-	// Группа защищенных маршрутов
 	api := router.Group("/api")
 	api.Use(middleware.AuthMiddleware())
 	{
@@ -41,7 +37,6 @@ func main() {
 		api.GET("/logs/:id", Dcontroller.GetLogs)
 	}
 
-	// Запуск сервера
 	log.Println("Starting server on :8081...")
 	if err := router.Run(":8081"); err != nil {
 		log.Fatalf("Failed to start server: %v", err)

@@ -15,7 +15,7 @@ var jwtKey []byte
 func init() {
 	key := os.Getenv("JWT_SECRET_KEY")
 	if key == "" {
-		key = "your-secret-key" // Only for development
+		key = "your-secret-key"
 	}
 	jwtKey = []byte(key)
 }
