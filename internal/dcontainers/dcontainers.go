@@ -2,9 +2,12 @@ package dcontainers
 
 import (
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"strings"
 
 	"github.com/docker/docker/api/types"
 	typeContainer "github.com/docker/docker/api/types/container"
@@ -92,7 +95,7 @@ func (container *DContainer) StopContainer(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("Container %s stopped", containerID)})
 }
 
-func (container *DContainer) GetLogs(c *gin.Context) { //TODO:FIX Logs print
+func (container *DContainer) GetLogs(c *gin.Context) {
 	containerID := c.Param("id")
 
 	cli, err := client.NewClientWithOpts(client.FromEnv)
@@ -103,25 +106,47 @@ func (container *DContainer) GetLogs(c *gin.Context) { //TODO:FIX Logs print
 
 	reader, err := cli.ContainerLogs(c.Request.Context(), containerID, types.ContainerLogsOptions{
 		ShowStdout: true,
-		ShowStderr: false,
+		ShowStderr: true,
+		Follow:     false,
+		Timestamps: true,
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	defer reader.Close()
 
-	// logs, err := io.Copy(os.Stdout, reader)
-	// if err != nil && err != io.EOF {
-	// 	c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-	// 	return
-	// }
-	data, err := json.MarshalIndent(reader, "", " ")
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+	header := make([]byte, 8)
+	var logs strings.Builder
+
+	for {
+		_, err := reader.Read(header)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		// Get the size of the log message
+		size := binary.BigEndian.Uint32(header[4:8])
+		if size == 0 {
+			continue
+		}
+
+		// Read the actual log message
+		message := make([]byte, size)
+		_, err = reader.Read(message)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		logs.Write(message)
+		logs.WriteString("\n")
 	}
-	c.Header("Content-Type", "application/json")
-	c.String(http.StatusOK, string(data))
 
-	// c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("Logs %s", containerID)})
+	c.Header("Content-Type", "text/plain")
+	c.String(http.StatusOK, logs.String())
 }

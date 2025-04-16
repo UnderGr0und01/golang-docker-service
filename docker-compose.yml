@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8081:8081"
+    environment:
+      - JWT_SECRET_KEY=your-secret-key-here
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=docker_service
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - postgres
+    networks:
+      - docker-service-network
+
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=docker_service
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - docker-service-network
+
+volumes:
+  postgres_data:
+
+networks:
+  docker-service-network:
+    driver: bridge 
