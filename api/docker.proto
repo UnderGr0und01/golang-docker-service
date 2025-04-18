@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package api;
+
+option go_package = "docker-service/api";
+
+service DockerService {
+  rpc Register(AuthRequest) returns (AuthResponse) {}
+  rpc Login(AuthRequest) returns (AuthResponse) {}
+  rpc ListContainers(Empty) returns (ContainerList) {}
+  rpc StartContainer(ContainerID) returns (OperationResponse) {}
+  rpc StopContainer(ContainerID) returns (OperationResponse) {}
+  rpc GetContainerLogs(ContainerID) returns (ContainerLogs) {}
+}
+
+message AuthRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message AuthResponse {
+  string token = 1;
+}
+
+message Empty {}
+
+message Container {
+  string id = 1;
+  string image = 2;
+  string state = 3;
+  string status = 4;
+}
+
+message ContainerList {
+  repeated Container containers = 1;
+}
+
+message ContainerID {
+  string id = 1;
+}
+
+message OperationResponse {
+  string message = 1;
+}
+
+message ContainerLogs {
+  string logs = 1;
+} 

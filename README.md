@@ -1,6 +1,6 @@
 # Docker Service API
 
-A RESTful API service for managing Docker containers with JWT authentication.
+A RESTful and gRPC API service for managing Docker containers with JWT authentication.
 
 ## Features
 
@@ -11,10 +11,13 @@ A RESTful API service for managing Docker containers with JWT authentication.
   - Start containers
   - Stop containers
   - View container logs
+- Dual API support:
+  - REST API (port 8081)
+  - gRPC API (port 8082)
 
 ## Prerequisites
 
-- Go 1.16 or higher
+- Go 1.23 or higher
 - Docker
 - Docker Compose
 - PostgreSQL (for user authentication)
@@ -49,7 +52,9 @@ make run
 go run cmd/app/main.go
 ```
 
-The server will start on port 8081.
+The servers will start on:
+- REST API: port 8081
+- gRPC API: port 8082
 
 ### Docker Deployment
 
@@ -69,7 +74,9 @@ make docker-up
 docker-compose up --build
 ```
 
-The service will be available at http://localhost:8081
+The services will be available at:
+- REST API: http://localhost:8081
+- gRPC API: localhost:8082
 
 To run in detached mode:
 ```bash
@@ -98,80 +105,98 @@ The project includes a Makefile with the following commands:
 make help        # Show all available commands
 make build       # Build the application
 make run         # Run the application locally
-make test        # Run tests
-make clean       # Clean build artifacts
 make docker-build # Build Docker images
 make docker-up   # Start Docker containers
 make docker-down # Stop Docker containers
-make docker-logs # View Docker container logs
+make clean       # Clean up all resources
 ```
 
 ## API Documentation
 
-### Authentication
+### REST API
 
-#### Register a new user
-```http
-POST /register
-Content-Type: application/json
+#### Authentication
 
-{
-    "username": "your_username",
-    "password": "your_password"
-}
+- POST /api/auth/register
+  - Register a new user
+  - Body: { "username": "string", "password": "string" }
+  - Returns: { "token": "string" }
+
+- POST /api/auth/login
+  - Login with existing user
+  - Body: { "username": "string", "password": "string" }
+  - Returns: { "token": "string" }
+
+#### Container Management
+
+- GET /api/containers
+  - List all containers
+  - Requires: Authorization header with JWT token
+  - Returns: Array of container objects
+
+- POST /api/containers/{id}/start
+  - Start a container
+  - Requires: Authorization header with JWT token
+  - Returns: { "message": "string" }
+
+- POST /api/containers/{id}/stop
+  - Stop a container
+  - Requires: Authorization header with JWT token
+  - Returns: { "message": "string" }
+
+- GET /api/containers/{id}/logs
+  - Get container logs
+  - Requires: Authorization header with JWT token
+  - Returns: { "logs": "string" }
+
+### gRPC API
+
+The gRPC API provides the same functionality as the REST API. The service definition can be found in `api/docker.proto`.
+
+#### Authentication
+
+- Register(stream AuthRequest) returns (stream AuthResponse)
+- Login(stream AuthRequest) returns (stream AuthResponse)
+
+#### Container Management
+
+- ListContainers(stream Empty) returns (stream ContainerList)
+- StartContainer(stream ContainerID) returns (stream OperationResponse)
+- StopContainer(stream ContainerID) returns (stream OperationResponse)
+- GetContainerLogs(stream ContainerID) returns (stream ContainerLogs)
+
+## Development
+
+### Project Structure
+
+```
+.
+├── api/                    # API definitions
+│   ├── docker.proto       # gRPC service definition
+│   └── docker_grpc.pb.go  # Generated gRPC code
+├── cmd/                   # Application entry points
+│   └── app/              # Main application
+├── internal/             # Internal packages
+│   ├── config/          # Configuration
+│   ├── core/            # Core business logic
+│   ├── models/          # Database models
+│   └── transport/       # API transport
+│       ├── GRPC/        # gRPC server
+│       └── REST/        # REST server
+├── migrations/          # Database migrations
+└── tests/              # Test files
 ```
 
-#### Login
-```http
-POST /login
-Content-Type: application/json
+### Adding New Features
 
-{
-    "username": "your_username",
-    "password": "your_password"
-}
-```
+1. Update the API definition in `api/docker.proto` for gRPC
+2. Implement the new feature in the core package
+3. Add the feature to both REST and gRPC servers
+4. Update documentation
 
-Response will include a JWT token:
-```json
-{
-    "token": "your.jwt.token"
-}
-```
+## License
 
-### Container Management
-
-All container management endpoints require JWT authentication. Include the token in the Authorization header:
-```
-Authorization: Bearer your.jwt.token
-```
-
-#### List Containers
-```http
-GET /api/containers/
-```
-
-#### Start Container
-```http
-POST /api/start/:id
-```
-
-#### Stop Container
-```http
-POST /api/stop/:id
-```
-
-#### Get Container Logs
-```http
-GET /api/logs/:id
-```
-
-## Security
-
-- All passwords are hashed using bcrypt
-- JWT tokens are used for authentication
-- Protected routes require valid JWT token
-- No sensitive data is logged
+MIT
 
 ---
 
@@ -275,8 +300,6 @@ docker-compose down -v
 make help        # Показать все доступные команды
 make build       # Собрать приложение
 make run         # Запустить приложение локально
-make test        # Запустить тесты
-make clean       # Очистить артефакты сборки
 make docker-build # Собрать Docker образы
 make docker-up   # Запустить Docker контейнеры
 make docker-down # Остановить Docker контейнеры

@@ -3,16 +3,12 @@ package dcontainers
 import (
 	"context"
 	"encoding/binary"
-	"encoding/json"
-	"fmt"
 	"io"
-	"net/http"
 	"strings"
 
 	"github.com/docker/docker/api/types"
 	typeContainer "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
-	"github.com/gin-gonic/gin"
 )
 
 type DContainer struct {
@@ -22,26 +18,19 @@ type DContainer struct {
 	Status string `json:"Status"`
 }
 
-// type DContainers struct{
-// 	containerList := make([]Dcontainer, len())
-// }
-
-func (container *DContainer) GetContainers(c *gin.Context) {
+func (container *DContainer) GetContainers() ([]DContainer, error) {
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
-		// panic(err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return nil, err
 	}
 
 	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{All: true})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return nil, err
 	}
 
 	containerList := make([]DContainer, len(containers))
-
 	for i, container := range containers {
-		// fmt.Printf("%s %s\n", container.ID[:10], container.Image)
 		containerList[i] = DContainer{
 			ID:     container.ID,
 			Status: container.Status,
@@ -49,70 +38,42 @@ func (container *DContainer) GetContainers(c *gin.Context) {
 			Image:  container.Image,
 		}
 	}
-	data, err := json.MarshalIndent(containerList, "", " ")
 
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.Header("Content-Type", "application/json")
-	c.String(http.StatusOK, string(data))
-
-	// w.Header().Set("Content-Type", "application/json")
-	// w.WriteHeader(http.StatusOK)
-
-	// fmt.Fprintln(w, string(JSON))
+	return containerList, nil
 }
 
-func (container *DContainer) StartContainer(c *gin.Context) {
-
-	containerID := c.Param("id")
+func (container *DContainer) StartContainer(id string) error {
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return err
 	}
 
-	err = cli.ContainerStart(context.Background(), containerID, types.ContainerStartOptions{})
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("Container %s started", containerID)})
+	return cli.ContainerStart(context.Background(), id, types.ContainerStartOptions{})
 }
 
-func (container *DContainer) StopContainer(c *gin.Context) {
-	containerID := c.Param("id")
+func (container *DContainer) StopContainer(id string) error {
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+		return err
 	}
 
-	if err = cli.ContainerStop(c.Request.Context(), containerID, typeContainer.StopOptions{}); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("Container %s stopped", containerID)})
+	return cli.ContainerStop(context.Background(), id, typeContainer.StopOptions{})
 }
 
-func (container *DContainer) GetLogs(c *gin.Context) {
-	containerID := c.Param("id")
-
+func (container *DContainer) GetLogs(id string) (string, error) {
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+		return "", err
 	}
 
-	reader, err := cli.ContainerLogs(c.Request.Context(), containerID, types.ContainerLogsOptions{
+	reader, err := cli.ContainerLogs(context.Background(), id, types.ContainerLogsOptions{
 		ShowStdout: true,
 		ShowStderr: true,
 		Follow:     false,
 		Timestamps: true,
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+		return "", err
 	}
 	defer reader.Close()
 
@@ -125,28 +86,23 @@ func (container *DContainer) GetLogs(c *gin.Context) {
 			if err == io.EOF {
 				break
 			}
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
+			return "", err
 		}
 
-		// Get the size of the log message
 		size := binary.BigEndian.Uint32(header[4:8])
 		if size == 0 {
 			continue
 		}
 
-		// Read the actual log message
 		message := make([]byte, size)
 		_, err = reader.Read(message)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
+			return "", err
 		}
 
 		logs.Write(message)
 		logs.WriteString("\n")
 	}
 
-	c.Header("Content-Type", "text/plain")
-	c.String(http.StatusOK, logs.String())
+	return logs.String(), nil
 }

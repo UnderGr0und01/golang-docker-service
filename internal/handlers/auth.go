@@ -4,7 +4,6 @@ import (
 	"log"
 	"net/http"
 
-	"docker-service/internal/config"
 	"docker-service/internal/middleware"
 	"docker-service/internal/models"
 
@@ -18,7 +17,7 @@ type AuthHandler struct {
 
 func NewAuthHandler() *AuthHandler {
 	return &AuthHandler{
-		db: config.DB,
+		db: models.DB,
 	}
 }
 

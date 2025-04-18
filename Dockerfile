@@ -1,5 +1,8 @@
 # Build stage
-FROM golang:1.21-alpine AS builder
+FROM golang:1.23-alpine AS builder
+
+# Install git and build dependencies
+RUN apk add --no-cache git build-base
 
 WORKDIR /app
 
@@ -9,25 +12,33 @@ COPY go.mod go.sum ./
 # Download dependencies
 RUN go mod download
 
-# Copy source code
+# Copy the source code
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o main ./cmd/app
+RUN go build -o main cmd/app/main.go
 
 # Final stage
-FROM alpine:latest
+FROM golang:1.23-alpine
 
 WORKDIR /app
+
+# Install Docker client
+RUN apk add --no-cache docker-cli
 
 # Copy the binary from builder
 COPY --from=builder /app/main .
 
-# Install Docker CLI
-RUN apk add --no-cache docker-cli
+# Copy test files
+COPY --from=builder /app/go.mod /app/go.sum ./
+COPY --from=builder /app/internal ./internal
+
+# Set environment variables
+ENV TEST_MODE=false
+ENV GIN_MODE=release
 
 # Expose port
-EXPOSE 8081
+EXPOSE 8081 8082
 
 # Set environment variables
 ENV JWT_SECRET_KEY=your-secret-key-here
@@ -37,5 +48,5 @@ ENV DB_USER=postgres
 ENV DB_PASSWORD=postgres
 ENV DB_NAME=docker_service
 
-# Run the application
+# Command to run the application
 CMD ["./main"] 

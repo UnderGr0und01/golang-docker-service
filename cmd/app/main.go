@@ -1,44 +1,52 @@
 package main
 
 import (
-	"docker-service/internal/config"
-	"docker-service/internal/core"
-	"docker-service/internal/dcontainers"
-	"docker-service/internal/handlers"
-	"docker-service/internal/middleware"
 	"log"
+	"os"
 
-	"github.com/gin-gonic/gin"
+	"docker-service/internal/core"
+	"docker-service/internal/models"
+	grpc "docker-service/internal/transport/GRPC"
+	rest "docker-service/internal/transport/REST"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
-
-	log.Println("Initializing database...")
-	config.InitDB()
-	log.Println("Database initialized successfully")
-
-	router := gin.Default()
-
-	authHandler := handlers.NewAuthHandler()
-
-	router.POST("/register", authHandler.Register)
-	router.POST("/login", authHandler.Login)
-
-	api := router.Group("/api")
-	api.Use(middleware.AuthMiddleware())
-	{
-		var Dcontroller core.Controller
-		Docker := dcontainers.DContainer{}
-		Dcontroller = &Docker
-
-		api.GET("/containers/", Dcontroller.GetContainers)
-		api.POST("/start/:id", Dcontroller.StartContainer)
-		api.POST("/stop/:id", Dcontroller.StopContainer)
-		api.GET("/logs/:id", Dcontroller.GetLogs)
+	envFile := ".env"
+	if os.Getenv("TEST_MODE") == "true" {
+		envFile = ".env.test"
 	}
 
-	log.Println("Starting server on :8081...")
-	if err := router.Run(":8081"); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
+	if err := godotenv.Load(envFile); err != nil {
+		log.Printf("Warning: Error loading %s file: %v", envFile, err)
 	}
+
+	models.InitDB(false)
+
+	sqlDB, err := models.DB.DB()
+	if err != nil {
+		log.Fatalf("Failed to get database connection: %v", err)
+	}
+	defer sqlDB.Close()
+
+	auth := models.NewAuth(models.DB)
+
+	controller := core.NewController()
+
+	restServer := rest.NewServer(controller, auth)
+	go func() {
+		if err := restServer.Start(":8081"); err != nil {
+			log.Printf("REST server error: %v", err)
+		}
+	}()
+
+	grpcServer := grpc.NewServer(&controller, auth)
+	go func() {
+		if err := grpcServer.Start(":8082"); err != nil {
+			log.Printf("gRPC server error: %v", err)
+		}
+	}()
+
+	select {}
 }

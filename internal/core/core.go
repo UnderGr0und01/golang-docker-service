@@ -1,10 +1,16 @@
 package core
 
-import "github.com/gin-gonic/gin"
+import (
+	"docker-service/internal/dcontainers"
+)
 
 type Controller interface {
-	GetContainers(c *gin.Context)
-	StartContainer(c *gin.Context)
-	StopContainer(c *gin.Context)
-	GetLogs(c *gin.Context)
+	GetContainers() ([]dcontainers.DContainer, error)
+	StartContainer(id string) error
+	StopContainer(id string) error
+	GetLogs(id string) (string, error)
+}
+
+func NewController() Controller {
+	return &dcontainers.DContainer{}
 }
